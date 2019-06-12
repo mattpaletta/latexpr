@@ -1,3 +1,4 @@
+import math
 from unittest import TestCase
 
 from latexpr import Math
@@ -124,19 +125,63 @@ class TestParse(TestCase):
 
     def test_constant_zero(self):
         result = Math.parse(latex = "0")
-        assert result == 0
+        assert result() == 0
 
     def test_constant_one(self):
         result = Math.parse(latex = "1")
-        assert result == 1
+        assert result() == 1
+
+    def test_constant_negative(self):
+        result = Math.parse(latex = "-3.14")
+        assert result() == -3.14
 
     def test_large_constant(self):
         result = Math.parse(latex = "1000")
-        assert result == 1000
+        assert result() == 1000
+
+    def test_mult(self):
+        result = Math.parse(latex = "(-7.13)(1.5)")
+        assert result() == -7.13 * 1.5
+
+    def test_var(self):
+        result = Math.parse(latex = "x")
+        assert result(x = 1) == 1
+
+    def test_var_neg(self):
+        result = Math.parse(latex = "-x")
+        assert result(x = 1) == -1
 
     def test_var_mult(self):
+        result = Math.parse(latex = "2x")
+        assert result(x = 3) == 2 * 3
+
+    def test_dot_var_mult(self):
+        result = Math.parse(latex = "a \\cdot b")
+        assert result(a = 2, b = 3) == 2 * 3
+
+    def test_var_div(self):
+        result = Math.parse(latex = "a / b")
+        assert result(a = 10, b = 2) == 5
+
+    def test_var_div2(self):
+        result = Math.parse(latex = "a \\div b")
+        assert result(a = 10, b = 2) == 5
+
+    def test_var_add(self):
+        result = Math.parse(latex = "a + b")
+        assert result(a = 10, b = 2) == 12
+
+    def test_var_add_multiple(self):
+        result = Math.parse(latex = "a + b - a")
+        assert result(a = 10, b = 2) == 2
+
+    def test_var_pow(self):
         result = Math.parse(latex = "x^3")
         assert result(x = "3") == 3 ** 3
+
+    def test_var_pow_complex(self):
+        result = Math.parse(latex = "x^{3 + 1}")
+        assert result(x = 3) == 3 ** 4
 
     def test_sqrt_simple(self):
         result = Math.parse(latex = "\\sqrt{x}")
@@ -145,3 +190,20 @@ class TestParse(TestCase):
     def test_sqrt_complex(self):
         result = Math.parse(latex = "\\sqrt{x + b}")
         assert result(x = 4, b = 5) == 3
+
+    def test_sin(self):
+        result = Math.parse(latex = "\\sin(\\theta)")
+        assert result(theta = math.pi / 2) == 1
+
+    def test_cos(self):
+        result = Math.parse(latex = "\\cos(\\theta)")
+        assert result(theta = 0) == 1
+
+    def test_frac(self):
+        result = Math.parse(latex = "\\frac {a + b} {c}")
+        assert result(a = 1, b = 2, c = 3) == 1
+
+    def test_func(self):
+        result = Math.parse(latex = "f(x) = x")
+        x = result(x = 1)
+        print(x)

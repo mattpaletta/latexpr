@@ -1,14 +1,17 @@
+import os
+import re
+from typing import List
+
 import sympy
 import antlr4
-from antlr4.error.ErrorListener import ErrorListener
 from sympy.core.numbers import One, Zero, Integer
 from sympy.parsing.latex._parse_latex_antlr import MathErrorListener
 
 from latexpr.ps.PSParser import PSParser
 from latexpr.ps.PSLexer import PSLexer
-from latexpr.ps.PSListener import PSListener
 
 from sympy.printing.str import StrPrinter
+
 
 class Math(object):
     @staticmethod
@@ -16,8 +19,40 @@ class Math(object):
         return Math.__process_sympy(latex)
 
     @staticmethod
+    def parse_mult_file(file: str, tag: List[str]):
+        if not os.path.exists(file):
+            raise FileNotFoundError("Could not find parse file: " + file)
+        with open(file, 'r') as f:
+            did_find = False
+            cur_eq = ""
+            found_funcs = []
+            for line in f:
+                if line.startswith("```{eq:"):
+                    m = re.search("```{eq:([a-zA-Z0-9_-]+)}", line)
+                    if m:
+                        found = m.group(1)
+                        if found in tag:
+                            did_find = True
+                            found_funcs.append(found)
+                elif line.startswith("```") and did_find:
+                    # We reached the end of the equation.
+                    did_find = False
+                    yield found_funcs[-1], Math.parse(latex = cur_eq)
+                    cur_eq = ""
+
+                elif did_find:
+                    # Still reading equation
+                    cur_eq += line
+
+            for t in tag:
+                fail_str = "Did not find function with name: {0}".format(t)
+                assert t in found_funcs, fail_str
+
+    @staticmethod
     def parse_file(file: str, tag: str):
-        pass
+        for t, f in Math.parse_mult_file(file, [tag]):
+            # We just return the first one because we only asked for 1.
+            return f
 
     @staticmethod
     def __process_sympy(latex):
@@ -39,7 +74,7 @@ class Math(object):
         expr = Math.__convert_relation(relation)
 
         if type(expr) in [int, float, One, Zero] or issubclass(Integer, type(expr)):
-            return expr
+            return lambda: expr
         else:
             def fn(**kwargs):
                 if type(expr) in [sympy.Integral, sympy.Limit]:
@@ -80,7 +115,7 @@ class Math(object):
     def __convert_add(add: PSParser.AdditiveContext):
         if add.ADD() or add.SUB():
             lhs, rhs = (Math.__convert_add(add.additive(i = 0)),
-                        Math.__convert_add(add.additive(i = 1)) if add.SUB() else -1 * Math.__convert_add(add.additive(i = 1)))
+                        Math.__convert_add(add.additive(i = 1)) if not add.SUB() else -1 * Math.__convert_add(add.additive(i = 1)))
         else:
             return Math.__convert_mp(add.mp())
 
